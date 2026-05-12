@@ -1,72 +1,47 @@
 import os
 import json
-from dotenv import load_dotenv
 import google.generativeai as genai
+from dotenv import load_dotenv
 
 load_dotenv()
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 model = genai.GenerativeModel('gemini-2.5-flash')
 
-def recommend_roles(resume_text):
-    """Suggests 3 job roles based on the resume."""
-    prompt = f"Resume: {resume_text}\nBased on this resume, suggest exactly 3 professional job roles. Return ONLY a JSON list of strings: ['Role1', 'Role2', 'Role3']"
+def clean_json(text):
+    """Safely extracts JSON from AI response."""
     try:
-        response = model.generate_content(prompt)
-        return json.loads(response.text.replace("```json", "").replace("```", "").strip())
-    except:
-        return ["Software Engineer", "Data Analyst", "Product Manager"]
+        start = text.find('[') if text.find('[') < text.find('{') and text.find('[') != -1 else text.find('{')
+        end = text.rfind(']') + 1 if text.rfind(']') > text.rfind('}') else text.rfind('}') + 1
+        return json.loads(text[start:end])
+    except: return None
 
-def generate_leveled_questions(role, resume_text):
-    """Generates 9 questions divided by difficulty."""
+def recommend_roles(resume_text):
+    prompt = f"Resume: {resume_text}\nSuggest 3 job roles. Return ONLY a JSON list: ['Role1', 'Role2', 'Role3']"
+    res = model.generate_content(prompt)
+    return clean_json(res.text) or ["Software Engineer", "Data Analyst", "AI Developer"]
+
+def generate_questions(role, resume_text, level):
+    """Generates 5 professional, diverse interview questions."""
     prompt = f"""
-    Role: {role}
-    Resume: {resume_text}
-    Task: Generate 9 interview questions. 
-    - 3 Easy (Fundamentals/Syntax)
-    - 3 Medium (Scenario/Problem Solving)
-    - 3 Hard (System Design/Deep Technical)
+    You are a Senior Hiring Manager for {role}. 
+    Difficulty: {level}. Candidate Resume: {resume_text}
     
-    Return ONLY a JSON object:
-    {{
-        "easy": [{{ "question": "..." }}, {{ "question": "..." }}, {{ "question": "..." }}],
-        "medium": [{{ "question": "..." }}, {{ "question": "..." }}, {{ "question": "..." }}],
-        "hard": [{{ "question": "..." }}, {{ "question": "..." }}, {{ "question": "..." }}]
-    }}
+    Task: Generate 5 distinct interview questions. 
+    1. Resume Project Deep-dive.
+    2. Real-world Industry Tooling/Standards.
+    3. Technical Scenario (Problem Solving).
+    4. Behavioral/Teamwork question.
+    5. Scalability/Optimization (Harder concept).
+    
+    Return ONLY a JSON list of objects: [{{"question": "..."}}]
     """
-    try:
-        response = model.generate_content(prompt)
-        clean_text = response.text.replace("```json", "").replace("```", "").strip()
-        return json.loads(clean_text)
-    except:
-        return {"easy": [], "medium": [], "hard": []}
+    res = model.generate_content(prompt)
+    data = clean_json(res.text)
+    if isinstance(data, list) and len(data) > 0 and isinstance(data[0], str):
+        data = [{"question": q} for q in data]
+    return data[:5] if data else [{"question": "Describe your technical background."}]
 
 def evaluate_responses(responses):
-    """Grades all 9 answers with strict JSON formatting."""
-    prompt = f"""
-    You are a strict technical interviewer. Evaluate these responses: {responses}
-    
-    Return ONLY a JSON object with these EXACT keys:
-    {{
-        "overall_score": "X/10",
-        "feedback": "A short summary of performance",
-        "details": [
-            {{
-                "question": "the question text",
-                "score": 5,
-                "feedback": "why this score"
-            }}
-        ]
-    }}
-    """
-    try:
-        response = model.generate_content(prompt)
-        # Remove any markdown backticks the AI might add
-        clean_text = response.text.replace("```json", "").replace("```", "").strip()
-        return json.loads(clean_text)
-    except Exception as e:
-        # If it fails, we return a "Safe" dictionary so the app doesn't crash
-        return {
-            "overall_score": "N/A", 
-            "feedback": f"Parsing Error: {str(e)}", 
-            "details": []
-        }
+    prompt = f"Act as a strict Interviewer. Evaluate these 5 responses: {responses}. Return ONLY JSON: {{'overall_score': 'X/10', 'feedback': 'summary', 'details': [{{'question': '...', 'score': 0-10, 'feedback': '...'}}]}}"
+    res = model.generate_content(prompt)
+    return clean_json(res.text) or {"overall_score": "N/A", "feedback": "Evaluation failed", "details": []}
