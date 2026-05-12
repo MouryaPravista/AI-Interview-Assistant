@@ -24,3 +24,10 @@ An intelligent, full-stack interview preparation platform that uses **LLMs (Gemi
 ├── temp/           # Temporary storage for resume processing
 ├── .env            # Private API Keys (Hidden)
 └── requirements.txt # Project dependencies
+## 🎓 What I Learned
+Building this project as a student helped me bridge the gap between academic theory and real-world AI Engineering:
+- **FastAPI:** Learned how to build structured APIs and handle asynchronous requests.
+- **LLM Prompt Engineering:** Discovered how to move beyond simple chat and force AI to return structured JSON data for applications.
+- **State Management:** Mastered Streamlit's session state to create a multi-step user experience on a single page.
+- **Data Pipelines:** Handled the end-to-end flow of data from a raw PDF file to a structured performance report.
+
