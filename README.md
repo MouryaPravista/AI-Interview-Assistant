@@ -24,6 +24,7 @@ An intelligent, full-stack interview preparation platform that uses **LLMs (Gemi
 ├── temp/           # Temporary storage for resume processing
 ├── .env            # Private API Keys (Hidden)
 └── requirements.txt # Project dependencies
+```
 ## 🎓 What I Learned
 Building this project as a student helped me bridge the gap between academic theory and real-world AI Engineering:
 - **FastAPI:** Learned how to build structured APIs and handle asynchronous requests.
