@@ -1,7 +1,8 @@
 from fastapi import FastAPI, UploadFile, File, Form
-import shutil, os, json
+from typing import List
+import shutil, os
 from utils.pdf_parser import extract_text_from_pdf
-from utils.ai_engine import recommend_roles, generate_leveled_questions, evaluate_responses
+from utils.ai_engine import recommend_roles, generate_questions, evaluate_responses
 
 app = FastAPI()
 
@@ -9,17 +10,14 @@ app = FastAPI()
 async def analyze(file: UploadFile = File(...)):
     if not os.path.exists("temp"): os.makedirs("temp")
     path = f"temp/{file.filename}"
-    with open(path, "wb") as buffer: shutil.copyfileobj(file.file, buffer)
-    
+    with open(path, "wb") as b: shutil.copyfileobj(file.file, b)
     text = extract_text_from_pdf(path)
-    roles = recommend_roles(text)
-    return {"resume_text": text, "recommended_roles": roles}
+    return {"resume_text": text, "recommended_roles": recommend_roles(text)}
 
 @app.post("/get-questions")
-async def get_qs(role: str = Form(...), resume_text: str = Form(...)):
-    questions = generate_leveled_questions(role, resume_text)
-    return {"questions": questions}
+async def get_qs(role: str = Form(...), resume_text: str = Form(...), level: str = Form(...)):
+    return {"questions": generate_questions(role, resume_text, level)}
 
 @app.post("/evaluate")
-async def eval_interview(responses: list):
+async def eval_interview(responses: List[dict]):
     return evaluate_responses(responses)
